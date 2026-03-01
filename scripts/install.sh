@@ -189,4 +189,6 @@ echo "Release source: $RELEASES_PAGE_URL"
 echo "Asset: $ASSET_NAME"
 echo "Port config: edit CFDDNS_PORT in $ENV_FILE"
 echo "View logs: journalctl -u $SERVICE_NAME -f"
-echo "Web UI: http://<server-ip>:<CFDDNS_PORT>"
+PORT=$(grep '^CFDDNS_PORT=' "$ENV_FILE" | cut -d'=' -f2)
+HOSTNAME=$(hostname -I | awk '{print $1}')
+echo "Web UI: http://${HOSTNAME}:${PORT}"
