@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloudflare DDNS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <main class="mx-auto w-full max-w-5xl px-4 py-8">
+      <div class="mb-2 flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold">Cloudflare DDNS</h1>
+        <a class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800" href="/logout">Logout</a>
+      </div>
+      <p class="mb-6 text-slate-400">Automatic DNS update for changing public IP addresses.</p>
+
+      <section class="mb-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-lg font-medium">Profiles</h2>
+        <form method="post" action="/profile/new">
+          <button class="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium hover:bg-blue-700" type="submit">Create New Profile</button>
+        </form>
+        <div class="mt-3 grid gap-2">
+          {% for profile in data.profiles %}
+            <a
+              class="flex items-center justify-between rounded-lg border px-3 py-2 {% if profile.id == selected_profile.id %}border-blue-500 bg-slate-800{% else %}border-slate-700 bg-slate-950 hover:bg-slate-900{% endif %}"
+              href="/?profile_id={{ profile.id }}"
+            >
+              <span>{{ profile.name }}</span>
+              <span class="text-sm text-slate-400">{{ profile.record_type }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="mb-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-lg font-medium">Profile Configuration</h2>
+        <form method="post" action="/profile/save">
+          <input type="hidden" name="profile_id" value="{{ selected_profile.id }}" />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Profile Name</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="text" name="name" value="{{ selected_profile.name }}" required />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Cloudflare API Token</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" name="api_token" value="{{ selected_profile.api_token }}" required />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Zone ID</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="text" name="zone_id" value="{{ selected_profile.zone_id }}" required />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Record Type</label>
+          <select class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" name="record_type">
+            <option value="A" {% if selected_profile.record_type == 'A' %}selected{% endif %}>A (IPv4)</option>
+            <option value="AAAA" {% if selected_profile.record_type == 'AAAA' %}selected{% endif %}>AAAA (IPv6)</option>
+          </select>
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Record Names (comma-separated)</label>
+          <input
+            class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+            type="text"
+            name="record_names_csv"
+            value="{{ selected_profile.record_names_csv }}"
+            placeholder="home.example.com, vpn.example.com"
+            required
+          />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">TTL</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="number" name="ttl" value="{{ selected_profile.ttl }}" min="1" />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Interval (seconds, min 30)</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="number" name="interval_seconds" value="{{ selected_profile.interval_seconds }}" min="30" required />
+
+          <label class="mt-3 flex items-center gap-2"><input type="checkbox" name="proxied" {% if selected_profile.proxied %}checked{% endif %} /> Proxied</label>
+          <label class="mt-2 flex items-center gap-2"><input type="checkbox" name="enabled" {% if selected_profile.enabled %}checked{% endif %} /> Auto update enabled</label>
+
+          <button class="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium hover:bg-blue-700" type="submit">Save Configuration</button>
+        </form>
+        <form class="mt-2" method="post" action="/profile/delete">
+          <input type="hidden" name="profile_id" value="{{ selected_profile.id }}" />
+          <button class="w-full rounded-lg bg-red-700 px-4 py-2 font-medium hover:bg-red-800" type="submit">Delete Profile</button>
+        </form>
+      </section>
+
+      <section class="mb-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-lg font-medium">Status</h2>
+        <p><strong>Profile:</strong> {{ selected_profile.name }}</p>
+        <p><strong>Last run:</strong> {{ selected_state.last_run or 'Never' }}</p>
+        <p><strong>Last result:</strong> {{ selected_state.last_result }}</p>
+        <p><strong>Current public IP:</strong> {{ selected_state.last_ip or 'Unknown' }}</p>
+        <p><strong>Changed records:</strong> {{ selected_state.last_changed_records }}</p>
+        <p>
+          <strong>Health:</strong>
+          {% if selected_state.last_success is none %}
+            Unknown
+          {% elif selected_state.last_success %}
+            OK
+          {% else %}
+            Error
+          {% endif %}
+        </p>
+
+        <form class="mt-3" method="post" action="/profile/run-now">
+          <input type="hidden" name="profile_id" value="{{ selected_profile.id }}" />
+          <button class="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium hover:bg-blue-700" type="submit">Run Update Now</button>
+        </form>
+      </section>
+
+      <section class="mb-4 rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-lg font-medium">Web UI Authentication</h2>
+        <form method="post" action="/auth/change">
+          <label class="mb-1 mt-3 block text-sm text-slate-300">Current Password</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" name="current_password" required />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">New Username</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="text" name="new_username" placeholder="Leave blank to keep current" />
+
+          <label class="mb-1 mt-3 block text-sm text-slate-300">New Password</label>
+          <input class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" name="new_password" placeholder="Leave blank to keep current" />
+
+          <button class="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium hover:bg-blue-700" type="submit">Update Login Credentials</button>
+        </form>
+      </section>
+
+      <section class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-3 text-lg font-medium">Logs</h2>
+        <pre class="max-h-80 overflow-auto rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200">{% for log in logs %}{{ log }}
+{% else %}No logs yet.
+{% endfor %}</pre>
+      </section>
+    </main>
+  </body>
+</html>
