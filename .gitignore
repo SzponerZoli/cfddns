@@ -3,4 +3,3 @@ build
 dist
 data
 *.spec
-install.sh
