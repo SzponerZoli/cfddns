@@ -25,7 +25,7 @@ You need:
 ## One-command install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/SzponerZoli/cfddns/main/scripts/install.sh | sudo bash
 ```
 
 
